@@ -29,7 +29,7 @@ cat <<EOS
     2. send  /newbot
     3. give it a display name  (e.g. "Nova")  -- this is what you will see
     4. give it a username ending in 'bot'  (e.g. nova_yourname_bot)
-    5. BotFather replies with a token like  8123456789:AAH...  -- copy it
+    5. BotFather replies with a long token (digits, a colon, then letters) -- copy all of it
 
   Repeat for each agent. Paste each token below. Nothing is stored until it
   has been checked against Telegram, and tokens are written 0600 to
