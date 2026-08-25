@@ -35,8 +35,15 @@ alive() {  # a claude process anywhere in this pane's tree, not just in front
 
 # A first-run prompt blocks startup entirely while the unit still says active.
 stuck() {
-  tmux capture-pane -t "agent-$1" -p 2>/dev/null \
-    | grep -qE "trust this folder|allow external imports|Enter to confirm"
+  local pane; pane=$(tmux capture-pane -t "agent-$1" -p 2>/dev/null) || return 1
+  printf '%s' "$pane" | grep -qE "trust this folder|allow external imports|Enter to confirm" && return 0
+  # AN OPEN PANEL IS JUST AS FATAL AND LESS OBVIOUS. /status, /context and /cost
+  # open a full-screen view that sits until somebody presses Escape, and the
+  # agent processes nothing while it is up — unit active, session alive, simply
+  # mute. Three agents sat like that for hours on the machine this came from.
+  printf '%s' "$pane" | tail -8 | grep -q "Esc to cancel" \
+    && ! printf '%s' "$pane" | tail -8 | grep -q "❯" && return 0
+  return 1
 }
 
 bad=""
