@@ -21,12 +21,37 @@ have docker || { warn "docker not installed — skipping desktops. Install docke
 
 IMAGE="lscr.io/linuxserver/webtop:ubuntu-xfce"
 ROOT="$HOME/.fleet/desktops"; mkdir -p "$ROOT"
+
+# FIND A FREE PORT rather than assuming one. Starting at a fixed number failed
+# the first time it met a machine that already had something on it — docker
+# reports "Bind for 127.0.0.1:3010 failed: port is already allocated", which is
+# a clear message attached to a failure the installer should simply not have.
+free_port() {
+  local p="${1:-3010}"
+  while [ "$p" -lt 3100 ]; do
+    if ! (exec 3<>"/dev/tcp/127.0.0.1/$p") 2>/dev/null; then printf '%s' "$p"; return 0; fi
+    exec 3>&- 2>/dev/null || true
+    p=$((p+1))
+  done
+  return 1
+}
 port=3010
 
 step "desktops"
 for d in $(printf '%s' "$WANT" | tr ',' ' '); do
   c="${d}-desktop"
-  if docker inspect "$c" >/dev/null 2>&1; then ok "$d already exists"; port=$((port+1)); continue; fi
+  # "It exists" is not "it works". A container that failed to start is still
+  # inspectable, so the first version of this reported a broken desktop as
+  # already-present and moved on — the exact silent success this whole project
+  # keeps tripping over. Check whether it is RUNNING, and clear away a corpse.
+  if docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null | grep -q true; then
+    ok "$d already running"; continue
+  fi
+  if docker inspect "$c" >/dev/null 2>&1; then
+    warn "$d exists but is not running — removing and recreating it"
+    docker rm -f "$c" >/dev/null 2>&1
+  fi
+  port="$(free_port "$port")" || { warn "no free port between 3010 and 3100 — skipping $d"; continue; }
   mkdir -p "$ROOT/$d/config" "$ROOT/$d/shots"
   # seccomp=unconfined and apparmor=unconfined are REQUIRED, not paranoia:
   # the browser sandbox (bwrap) and PNG decoding both fail under the default
