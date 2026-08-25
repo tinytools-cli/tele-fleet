@@ -40,6 +40,7 @@ t "shared operating rules exist"          test -s "$HOME/AGENTS.md"
 t "operator profile exists"               test -s "$HOME/OPERATOR.md"
 t "the ticket guard is installed"         test -x "$HOME/.fleet/bin/work-guard.sh"
 t "the reply guard is installed"          test -x "$HOME/.fleet/bin/reply-guard.sh"
+t "the question guard is installed"       test -x "$HOME/.fleet/bin/askuser-guard.sh"
 t "settings.json is valid json"           python3 -c "import json,sys;json.load(open(sys.argv[1]))" "$HOME/.claude/settings.json"
 
 step "per agent"

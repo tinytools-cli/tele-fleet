@@ -85,6 +85,33 @@ PY
 # THE BOARD A HUMAN ACTUALLY LOOKS AT. tix's CLI is what agents use; this is how
 # the operator sees what the whole fleet is doing without asking each of them,
 # which is the entire reason for a shared tracker.
+# THE QUESTION AN AGENT ASKS WHERE NOBODY CAN SEE IT.
+# AskUserQuestion renders a menu in the agent's own terminal and blocks until
+# someone presses a key THERE. If the operator is on a chat channel they will
+# never see it, and the agent sits wedged MID-TURN — work in flight, every
+# health check green — until a human happens to look.
+#
+# It cannot be caught afterwards: the reply guard is a Stop hook, and Stop hooks
+# fire when a turn ENDS. This turn never ends. PreToolUse is the only place.
+#
+# Fires only when a chat channel is actually in play; a terminal session with a
+# human at the keyboard should use the terminal tool, and still can.
+step "question guard"
+install -m 750 "$HERE/templates/askuser-guard.sh" "$HOME/.fleet/bin/askuser-guard.sh"
+python3 - "$SETTINGS" <<'PY' && ok "question guard wired in" || warn "could not wire the question guard"
+import json, sys
+p = sys.argv[1]
+try: d = json.load(open(p))
+except Exception: d = {}
+cmd = "$HOME/.fleet/bin/askuser-guard.sh"
+pre = d.setdefault("hooks", {}).setdefault("PreToolUse", [])
+for e in pre:
+    if e.get("matcher") == "AskUserQuestion":
+        sys.exit(0)
+pre.append({"matcher": "AskUserQuestion", "hooks": [{"type": "command", "command": cmd, "timeout": 10}]})
+json.dump(d, open(p, "w"), indent=2)
+PY
+
 step "dashboard"
 if [ -x "$HOME/.local/share/tix-venv/bin/tix-web" ]; then
   install -m 644 "$HERE/templates/tix-web.service" "$HOME/.config/systemd/user/tix-web.service"
