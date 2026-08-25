@@ -1,0 +1,7 @@
+[Unit]
+Description=Run the fleet watchdog every 10 minutes
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+[Install]
+WantedBy=timers.target

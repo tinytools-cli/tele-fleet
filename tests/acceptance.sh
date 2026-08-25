@@ -58,6 +58,11 @@ for a in $AGENTS; do
   fi
 done
 
+step "the watchdog"
+# The one thing standing between a dead agent and nobody noticing.
+t "watchdog is installed"                 test -x "$HOME/.fleet/bin/fleet-watchdog.sh"
+t "watchdog timer is active"              systemctl --user is-active fleet-watchdog.timer
+
 step "the tracker actually round-trips"
 t "tix can list projects"                 tix projects
 

@@ -1,0 +1,5 @@
+[Unit]
+Description=Check the agent fleet is actually alive, and repair what is not
+[Service]
+Type=oneshot
+ExecStart=%h/.fleet/bin/fleet-watchdog.sh
