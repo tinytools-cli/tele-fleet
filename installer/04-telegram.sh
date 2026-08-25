@@ -27,7 +27,7 @@
 #
 # Shipping the env var without this patch would have produced a fleet where only
 # one agent ever receives anything — exactly the silent failure this whole setup
-# is built to avoid. Caught because the owner asked whether ALL the fixes had
+# is built to avoid. Caught because the operator asked whether ALL the fixes had
 # made it into the repo. They had not.
 apply_statedir_patch() {
   local n=0 f

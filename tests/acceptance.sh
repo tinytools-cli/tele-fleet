@@ -73,6 +73,16 @@ step "the watchdog"
 t "watchdog is installed"                 test -x "$HOME/.fleet/bin/fleet-watchdog.sh"
 t "watchdog timer is active"              systemctl --user is-active fleet-watchdog.timer
 
+# Only meaningful if desktops were requested — absent is not a failure.
+if [ -n "$(conf_get DESKTOPS)" ]; then
+  step "desktops"
+  t "desktop.sh installed"                test -x "$HOME/.fleet/bin/desktop.sh"
+  t "screenshot guard installed"          test -x "$HOME/.fleet/bin/screenshot-guard.sh"
+  for d in $(conf_get DESKTOPS | tr ',' ' '); do
+    t "$d container running" bash -c "docker inspect -f '{{.State.Running}}' '${d}-desktop' 2>/dev/null | grep -q true"
+  done
+fi
+
 step "the tracker actually round-trips"
 t "tix can list projects"                 tix projects
 

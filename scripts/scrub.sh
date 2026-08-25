@@ -33,9 +33,15 @@ PATTERNS=(
   '100\.(6[4-9]|[7-9][0-9]|1[0-2][0-9])\.[0-9]{1,3}\.[0-9]{1,3}'  # tailnet CGNAT range
   '[a-z0-9-]+\.ts\.net'                        # tailnet hostnames
   '@[a-z0-9_]{3,}_bot'                          # bot usernames
+  # PERSONAL NAMES from the machine this was extracted from. Added after the
+  # pattern list above passed a file that still said "the owner" three times:
+  # the other patterns look for paths, ids and hostnames, and a first name is
+  # none of those. A leak does not have to look technical to be a leak.
+  'EXAMPLE_OWNER_NAME'
 )
 LABELS=( "source home path" "long numeric id (chat/user id)" "telegram bot token"
-         "api key" "github token" "tailnet ip" "tailnet hostname" "bot username" )
+         "api key" "github token" "tailnet ip" "tailnet hostname" "bot username"
+         "a person's name from the source machine" )
 
 fail=0
 files=$(git ls-files 2>/dev/null)

@@ -5,7 +5,7 @@ HERE="$(cd "$(dirname "$0")/.." && pwd)"
 AGENTS="$(agent_names)"
 
 # THE WATCHDOG IS NOT OPTIONAL, and shipping the fleet without it was an
-# oversight caught by the owner asking whether everything had made it in. The
+# oversight caught by the operator asking whether everything had made it in. The
 # unit file itself says "a dead agent reports active forever — the honest check
 # is the watchdog", and then the watchdog was not installed. Documentation
 # pointing at a thing that does not exist is worse than no documentation.
