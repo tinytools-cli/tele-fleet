@@ -79,10 +79,36 @@ interview() {
   conf_set AGENTS "$names"
   conf_set MAIN "${names%%,*}"
 
+  step "Browser desktops?"
+  say "  A desktop is a real Linux desktop with a browser, running in a container."
+  say "  It lets an agent do work that has no API — a vendor portal, a console, a"
+  say "  form with forty fields — instead of handing it back to you. You can open"
+  say "  it in a browser, watch, and take over to sign in or pay."
+  say ""
+  say "  ${C_WARN}Cost:${C_OFF} each one is a container with its own browser — roughly a GB of"
+  say "  RAM when busy. Start with one shared desktop unless you know you need more."
+  say ""
+  say "    1  one shared desktop  (recommended)"
+  say "    2  one per agent"
+  say "    3  none"
+  local pick desks=""
+  while :; do
+    pick=$(ask "Which" "1")
+    case "$pick" in
+      1) desks="shared"; break ;;
+      2) desks="${names}"; break ;;
+      3) desks=""; break ;;
+      *) warn "1, 2 or 3" ;;
+    esac
+  done
+  [ -n "$desks" ] && conf_set DESKTOPS "$desks"
+
   step "Written to $FLEET_CONF"
   say "  operator : $op ($tz)"
   say "  agents   : ${names//,/, }"
   say "  main     : ${names%%,*}   (your engineering agent)"
+  local dl; dl="$(conf_get DESKTOPS)"
+  say "  desktops : ${dl:-none}"
   say ""
   say "  No tokens are stored yet. Telegram comes later and asks per agent."
 }
