@@ -58,6 +58,15 @@ for a in $AGENTS; do
   fi
 done
 
+step "credentials that survive a reboot"
+# An interactive login works and a systemd-started agent fails — the worst
+# possible split, because it only shows up after a restart nobody is watching.
+t "long-lived Claude token stored"        test -s "$HOME/.fleet/secrets/claude-token.env"
+
+step "state backup"
+t "state backup installed"                test -x "$HOME/.fleet/bin/state-backup.sh"
+t "state backup timer active"             systemctl --user is-active state-backup.timer
+
 step "the watchdog"
 # The one thing standing between a dead agent and nobody noticing.
 t "watchdog is installed"                 test -x "$HOME/.fleet/bin/fleet-watchdog.sh"

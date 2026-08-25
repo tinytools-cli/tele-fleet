@@ -1,0 +1,5 @@
+[Unit]
+Description=Version the fleet's state (rules, identities, tickets) into a local git repo
+[Service]
+Type=oneshot
+ExecStart=%h/.fleet/bin/state-backup.sh

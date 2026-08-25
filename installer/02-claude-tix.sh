@@ -26,6 +26,39 @@ else
 fi
 have claude && ok "claude on PATH" || warn "claude NOT on PATH — the fleet cannot start without it"
 
+# A LOGIN THAT SURVIVES REBOOTS AND UNATTENDED STARTS.
+# An interactive `claude` login is tied to the session that made it. Agents are
+# started by systemd, often after a reboot with nobody watching, and they need
+# credentials of their own. `claude setup-token` issues a long-lived token for
+# exactly that.
+#
+# YOU RUN IT, NOT THIS SCRIPT -- it is authentication, and a script should never
+# be holding the browser flow for your account. All this does is tell you when
+# it is needed, where to put it, and check the result.
+#
+# KNOWN LIMIT, worth stating before you rely on it: a setup-token can only make
+# model requests. It does NOT carry claude.ai connectors (Gmail, Calendar,
+# Drive, GitHub). If your agents need those, they need a separate broker; the
+# token is not a route to them.
+step "agent credentials"
+SECRETS="$HOME/.fleet/secrets"; mkdir -p "$SECRETS"; chmod 700 "$SECRETS"
+CT="$SECRETS/claude-token.env"
+if [ -s "$CT" ]; then
+  ok "long-lived token already stored"
+else
+  warn "no long-lived Claude token yet — agents started by systemd will fail without one."
+  say  ""
+  say  "  Run this yourself, in a terminal where you are logged in:"
+  say  "      claude setup-token"
+  say  "  then save what it prints:"
+  say  "      printf 'CLAUDE_CODE_OAUTH_TOKEN=%s\\n' '<the token>' > $CT"
+  say  "      chmod 600 $CT"
+  say  ""
+  say  "  Then re-run:  ./install.sh --resume"
+  say  "  Skipping it is fine for a first look — agents you start by hand in a"
+  say  "  logged-in terminal will work. They will not survive a reboot."
+fi
+
 step "tix"
 # A DEPENDENCY, NEVER A VENDORED COPY -- it is versioned and maintained
 # separately, and copying it would fork it on day one.

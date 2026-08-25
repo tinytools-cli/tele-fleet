@@ -29,8 +29,17 @@ if [ -f "$lock" ]; then
   if [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; then rm -f "$lock"; fi
 fi
 
+# THE CLAUDE TOKEN MUST BE SOURCED HERE, not inherited.
+# CLAUDE_CODE_OAUTH_TOKEN is NOT passed down to child processes. Anything that
+# spawns `claude` has to source it first, or the agent dies with "OAuth session
+# expired and could not be refreshed" -- which reads like an expiry problem and
+# is not one. Without this an interactive login works fine and every agent
+# started by systemd after a reboot fails, which is the worst possible split.
+CLAUDE_TOKEN="$HOME/.fleet/secrets/claude-token.env"
+
 env_files=""
-[ -r "$TOKEN" ] && env_files=". '$TOKEN' && "
+[ -r "$CLAUDE_TOKEN" ] && env_files=". '$CLAUDE_TOKEN' && "
+[ -r "$TOKEN" ] && env_files="${env_files}. '$TOKEN' && "
 tmux new-session -d -s "$SESSION" -x 200 -y 50 \
   "cd '$DIR' && export TELEGRAM_STATE_DIR='$STATE' && export TIX_AGENT='$name' && \
    set -o allexport && ${env_files}set +o allexport && exec claude"

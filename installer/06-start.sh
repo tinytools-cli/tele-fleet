@@ -9,6 +9,21 @@ AGENTS="$(agent_names)"
 # unit file itself says "a dead agent reports active forever — the honest check
 # is the watchdog", and then the watchdog was not installed. Documentation
 # pointing at a thing that does not exist is worse than no documentation.
+# VERSION THE STATE, hourly. Rules, identities, ticket database — all text or
+# small SQLite, so git gives a restore point AND the history of who changed
+# what. Allowlist rather than ignore-list, so a new file is excluded by default
+# and the failure mode is "missing" rather than "leaked". Secrets deliberately
+# excluded: tokens are re-issuable, and copying them creates a second place to
+# leak from.
+step "state backup"
+install -m 750 "$HERE/templates/state-backup.sh" "$HOME/.fleet/bin/state-backup.sh"
+install -m 644 "$HERE/templates/state-backup.service" "$HOME/.config/systemd/user/state-backup.service"
+install -m 644 "$HERE/templates/state-backup.timer"   "$HOME/.config/systemd/user/state-backup.timer"
+systemctl --user daemon-reload 2>/dev/null
+systemctl --user enable --now state-backup.timer >/dev/null 2>&1 \
+  && ok "state versioned hourly into ~/.fleet/state (restore is verified on every run)" \
+  || warn "state backup installed but the timer would not start — run ~/.fleet/bin/state-backup.sh by hand"
+
 step "watchdog"
 install -m 750 "$HERE/templates/fleet-watchdog.sh" "$HOME/.fleet/bin/fleet-watchdog.sh"
 mkdir -p "$HOME/.config/systemd/user"
