@@ -4,7 +4,11 @@
 
 need_root() { [ "$(id -u)" = 0 ] || { warn "not root — skipping package install; re-run with sudo for a full bootstrap"; return 1; }; }
 
-PKGS="tmux git curl jq python3 python3-venv python3-pip ufw fail2ban ca-certificates"
+# nodejs/npm are NOT optional -- Claude Code is installed with npm, and a
+# clean-machine run (an internal ticket) got as far as "npm not found ... the fleet cannot
+# start without it" because this list omitted them. The development machine had
+# Node already, so the gap was invisible until the container test.
+PKGS="tmux git curl jq python3 python3-venv python3-pip nodejs npm ufw fail2ban ca-certificates"
 
 if need_root; then
   step "packages"
@@ -23,6 +27,26 @@ if need_root; then
   ufw --force enable >/dev/null 2>&1 && ok "ufw enabled (ssh allowed first)" || warn "ufw not enabled"
   systemctl enable --now fail2ban >/dev/null 2>&1 && ok "fail2ban running" || warn "fail2ban not started"
 fi
+
+# ~/.local/bin MUST BE ON PATH, and creating it is not enough. Debian's default
+# ~/.profile adds it only if the directory EXISTS when the login shell starts --
+# so installing tix into a directory created moments earlier leaves a working
+# binary the user cannot run. The clean-machine test printed "cloned to
+# ~/.local/share/tix" and "add $HOME/.local/bin to PATH" in the same breath,
+# which is a fancy way of saying it did not work.
+step "PATH"
+mkdir -p "$HOME/.local/bin"
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ok "~/.local/bin already on PATH" ;;
+  *)
+    for rc in "$HOME/.profile" "$HOME/.bashrc"; do
+      [ -f "$rc" ] || continue
+      grep -q 'HOME/.local/bin' "$rc" 2>/dev/null && continue
+      printf '\n# added by the fleet installer\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$rc"
+    done
+    export PATH="$HOME/.local/bin:$PATH"
+    ok "~/.local/bin added to PATH (new shells pick it up; this run already has it)" ;;
+esac
 
 step "verify"
 # ONE ACTIONABLE MESSAGE, not a warning followed by an unrelated death.
