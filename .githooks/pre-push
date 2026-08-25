@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Refuse to push anything the scrub gate rejects.
+#
+# WHY A HOOK AND NOT DISCIPLINE. I ran the gate manually and got it wrong within
+# the hour: `./scripts/scrub.sh && git add -A && git push` runs the gate BEFORE
+# staging, so it inspected the previous state and cheerfully reported clean on a
+# file it had never seen. The file happened to be fine. The assurance was false
+# either way.
+#
+# Ordering is not something to remember. Put it where it cannot be skipped.
+exec "$(git rev-parse --show-toplevel)/scripts/scrub.sh"
