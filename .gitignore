@@ -1,0 +1,17 @@
+# WORKING DOCUMENTS THAT MUST NEVER BE PUBLISHED.
+# INVENTORY.md is the classification pass: to say what must be stripped, it has
+# to NAME the values — chat ids, the source home path, the box name. That makes
+# the document itself the exact thing the scrub gate exists to catch. It is
+# useful to us and must not reach the repo.
+INVENTORY.md
+
+# Per-install config and credentials. fleet.conf holds the operator's name and
+# their agents; secrets holds bot tokens. Neither belongs in version control,
+# and both are created at install time on the target machine.
+fleet.conf
+secrets/
+*.env
+
+# Sandbox and scratch
+sandbox/
+*.bak-*

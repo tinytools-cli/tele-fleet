@@ -1,0 +1,27 @@
+[Unit]
+Description=Claude Code agent %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# oneshot + RemainAfterExit because tmux double-forks: systemd cannot supervise
+# the claude process inside. This unit exists to bring the agent back after a
+# reboot, NOT to prove it is alive.
+#
+# READ THIS BEFORE TRUSTING `systemctl status`: with no Restart= and
+# RemainAfterExit=yes, a DEAD agent reports "active" forever. On the machine
+# this came from, four agents sat dead-but-green until a human noticed. The
+# honest liveness check is the watchdog, which looks for a server holding that
+# agent's own state dir. Do not "fix" this by trusting the unit.
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=%h/.fleet/bin/start-agent.sh %i
+ExecStop=-/usr/bin/tmux kill-session -t agent-%i
+# Killing tmux does not reliably reap the agent's Telegram server. An orphan
+# left holding the state dir keeps polling the same bot token as its
+# replacement, which drops or doubles inbound messages.
+ExecStop=-%h/.fleet/bin/reap-agent.sh %i
+Environment=PATH=%h/.local/bin:%h/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=default.target
