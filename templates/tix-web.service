@@ -1,0 +1,17 @@
+[Unit]
+Description=tix dashboard — see what every agent is doing without asking them
+After=network.target
+
+[Service]
+# Bound to LOCALHOST ONLY, deliberately. This board shows every ticket and note
+# the fleet has written; it has no login because it is not meant to be reachable
+# from anywhere but this machine. If you want it from another device, put it
+# behind something that authenticates — a VPN or an authenticating proxy — and
+# do not simply change this to 0.0.0.0.
+Type=simple
+ExecStart=%h/.local/share/tix-venv/bin/tix-web --host 127.0.0.1 --port 8791
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

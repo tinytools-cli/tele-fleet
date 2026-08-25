@@ -58,6 +58,44 @@ stop.append({"hooks": [{"type": "command", "command": cmd, "timeout": 15}]})
 json.dump(d, open(p, "w"), indent=2)
 PY
 
+# THE GUARD FOR THE FAILURE THAT LOOKS EXACTLY LIKE SUCCESS.
+# An agent can compose a perfect answer, print it, and stop — and the person
+# waiting receives silence while every process check stays green. It happened
+# twice in one day on the machine this came from, to two different agents.
+# Rules are advice; a Stop hook is enforcement, because the harness runs it
+# rather than the model.
+# Blocks at most ONCE per inbound message, so a genuine "no reply needed" costs
+# one nudge and never loops. Fails open on any missing state.
+step "reply guard"
+install -m 750 "$HERE/templates/reply-guard.sh" "$HOME/.fleet/bin/reply-guard.sh"
+python3 - "$SETTINGS" <<'PY' && ok "reply guard wired in" || warn "could not wire the reply guard"
+import json, sys
+p = sys.argv[1]
+try: d = json.load(open(p))
+except Exception: d = {}
+cmd = "$HOME/.fleet/bin/reply-guard.sh"
+stop = d.setdefault("hooks", {}).setdefault("Stop", [])
+for e in stop:
+    for h in e.get("hooks", []):
+        if "reply-guard" in h.get("command", ""): sys.exit(0)
+stop.append({"hooks": [{"type": "command", "command": cmd, "timeout": 10}]})
+json.dump(d, open(p, "w"), indent=2)
+PY
+
+# THE BOARD A HUMAN ACTUALLY LOOKS AT. tix's CLI is what agents use; this is how
+# the operator sees what the whole fleet is doing without asking each of them,
+# which is the entire reason for a shared tracker.
+step "dashboard"
+if [ -x "$HOME/.local/share/tix-venv/bin/tix-web" ]; then
+  install -m 644 "$HERE/templates/tix-web.service" "$HOME/.config/systemd/user/tix-web.service"
+  systemctl --user daemon-reload 2>/dev/null
+  systemctl --user enable --now tix-web.service >/dev/null 2>&1 \
+    && ok "dashboard on http://127.0.0.1:8791 (localhost only — it has no login)" \
+    || warn "dashboard installed but would not start: systemctl --user status tix-web"
+else
+  warn "tix-web not found — skipping the dashboard (the CLI still works)"
+fi
+
 step "verify"
 check "~/AGENTS.md present"   test -s "$HOME/AGENTS.md"
 check "~/OPERATOR.md present" test -s "$HOME/OPERATOR.md"
