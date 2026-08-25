@@ -12,6 +12,46 @@
 # validation, the storage, and finding your chat id so you never have to.
 . "$(dirname "$0")/lib.sh"
 
+# ── the patch WITHOUT WHICH A MULTI-AGENT FLEET DOES NOT WORK ───────────────
+# The Telegram plugin hardcodes ONE state directory (~/.claude/channels/telegram)
+# for everything: access.json, the token env, messages.db and — fatally —
+# data/telegram.lock. That is fine for one bot and fatal for two. Two agents on
+# one lock means ONE polls and the other looks completely healthy while dropping
+# every inbound message.
+#
+# start-agent.sh sets TELEGRAM_STATE_DIR per agent, but the stock plugin IGNORES
+# it. This patch makes it honoured, leaving the default byte-identical for
+# anyone who does not set it. Idempotent, and it hard-fails if upstream moves
+# the anchor, so a refactor surfaces loudly instead of silently restoring the
+# collision.
+#
+# Shipping the env var without this patch would have produced a fleet where only
+# one agent ever receives anything — exactly the silent failure this whole setup
+# is built to avoid. Caught because the owner asked whether ALL the fixes had
+# made it into the repo. They had not.
+apply_statedir_patch() {
+  local n=0 f
+  for f in "$HOME"/.claude/plugins/cache/*/telegram/*/server.ts; do
+    [ -r "$f" ] || continue
+    if python3 "$HERE/templates/patch-telegram-statedir.py" "$f" >/dev/null 2>&1; then
+      n=$((n+1))
+    fi
+  done
+  [ "$n" -gt 0 ]
+}
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
+step "per-agent message isolation"
+if [ "$(printf '%s\n' $(agent_names) | wc -l)" -le 1 ]; then
+  ok "single agent — no isolation needed"
+elif apply_statedir_patch; then
+  ok "Telegram plugin patched so each agent owns its own state directory"
+else
+  warn "could not patch the Telegram plugin — it may not be installed yet."
+  warn "  WITHOUT IT, MULTIPLE AGENTS SHARE ONE INBOX: one polls, the rest look"
+  warn "  healthy and silently receive nothing. Re-run this stage after the"
+  warn "  agents have started once:  ./install.sh --resume"
+fi
+
 AGENTS="$(agent_names)"; MAIN="$(conf_get MAIN)"
 [ -n "$AGENTS" ] || die "no agents configured"
 SECRETS="$HOME/.fleet/secrets"; mkdir -p "$SECRETS"; chmod 700 "$SECRETS"
