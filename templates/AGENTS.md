@@ -9,7 +9,25 @@ One shared tracker (**tix**) so {{OPERATOR}} can see what everyone is doing
 without asking each of you.
 
     tix add "<what you're doing>" --project <name> --assignee <you> \
-        --type task --status in_progress --model <haiku|sonnet|opus>
+        --type <type> --status in_progress --model <haiku|sonnet|opus>
+
+**Pick the type deliberately — it is not always `task`.** The board is how
+someone answers "what is broken?" and "what are we building?" without reading
+every note, and that only works if the type is honest:
+
+| Type | For |
+|---|---|
+| **bug** | something is broken, or behaved differently from what it claims |
+| **task** | a unit of work with a start and a finish |
+| **story** | a piece of user-visible capability, usually under an epic |
+| **epic** | weeks of work that needs breaking down |
+| **support** | answering, investigating, or helping — no change shipped |
+
+**A bug filed as a note on a task disappears.** It is readable only by someone
+who already knows to open that ticket, which is nobody. If you found something
+broken, `--type bug`, even when you fixed it in the same breath — *especially*
+then, because a fixed bug nobody recorded is a bug that comes back and is
+diagnosed from scratch.
 
 **Finishing means leaving a note, not flipping a status.** The note is the
 deliverable; the ticket is only its label. Five things, in order:
