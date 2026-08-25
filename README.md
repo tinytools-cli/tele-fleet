@@ -10,6 +10,35 @@ its own identity, and comes back after a reboot.
 It interviews you — how many agents, what they are called, what each one does —
 then installs everything and starts them.
 
+**`install.sh` is a plain shell script. A human runs it, and no agent is
+needed** — which is the only thing that can work, because on a bare server there
+is no agent yet. Bash, coreutils, curl and python3 are the whole dependency list.
+
+### Two ways to run it
+
+**Interactive (a person, first time).** Just `./install.sh`. It asks the
+questions and explains each one.
+
+**Unattended (an agent, or a rebuild).** Write `~/fleet.conf` and drop the bot
+tokens in yourself, then nothing prompts:
+
+    cat > ~/fleet.conf <<'EOF'
+    OPERATOR=Sam
+    TIMEZONE=UTC
+    AGENTS=nova,lyra
+    MAIN=nova
+    ROLE_nova=engineering
+    ROLE_lyra=research
+    EOF
+    mkdir -p ~/.fleet/secrets && chmod 700 ~/.fleet/secrets
+    printf 'TELEGRAM_BOT_TOKEN=...\n' > ~/.fleet/secrets/telegram-nova.env
+
+    ./install.sh --resume
+
+Every stage skips what is already done, so this is safe to re-run and safe to
+resume after a failure. Tokens are still checked against Telegram — a
+pre-seeded token that has been revoked is reported, not assumed good.
+
 ## What you do vs what it does
 
 **You authenticate.** Your Claude login, and one Telegram bot per agent from

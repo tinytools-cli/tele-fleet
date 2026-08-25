@@ -87,7 +87,15 @@ if [ -z "$(conf_get OWNER_CHAT_ID)" ]; then
 fi
 
 step "verify"
+# RE-CHECK, do not trust that a file exists. The first version of this step said
+# "$a has a verified bot token" whenever the FILE was non-empty -- so a
+# pre-seeded file containing the word "fake" was reported as verified. That is
+# the exact class of lie this installer is built to avoid, and it was in the
+# installer. A token can also be revoked between collection and now.
 for a in $AGENTS; do
-  if [ -s "$SECRETS/telegram-$a.env" ]; then ok "$a has a verified bot token"
-  else warn "$a has NO token — reachable only from the terminal"; fi
+  f="$SECRETS/telegram-$a.env"
+  if [ ! -s "$f" ]; then warn "$a has NO token — reachable only from the terminal"; continue; fi
+  tok=$(sed -n 's/^TELEGRAM_BOT_TOKEN=//p' "$f" | head -1)
+  if uname=$(verify_token "$tok"); then ok "$a -> @$uname (checked just now)"
+  else warn "$a has a token that Telegram REJECTS — that agent will start and never receive anything"; fi
 done
