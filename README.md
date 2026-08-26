@@ -1,5 +1,3 @@
-<img src="docs/logo.jpg" alt="Telefleet" width="96">
-
 # Telefleet
 
 *Agent fleet installer*
