@@ -1,4 +1,8 @@
-# Agent Fleet Installer
+<img src="docs/logo.jpg" alt="Telefleet" width="96">
+
+# Telefleet
+
+*Agent fleet installer*
 
 Sets up a fleet of [Claude Code](https://claude.com/claude-code) agents on a
 Linux server. Each agent gets its own working directory, its own Telegram bot,
