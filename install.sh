@@ -17,9 +17,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODE="${1:-}"
 
 banner() {
-cat <<'B'
+cat <<B
 
-  Agent Fleet Installer
+  Agent Fleet Installer  v$(cat "$HERE/VERSION" 2>/dev/null || echo "?")
   ---------------------
   Sets up Claude Code agents on this machine: each one its own working
   directory, its own Telegram bot, its own identity, supervised so they
