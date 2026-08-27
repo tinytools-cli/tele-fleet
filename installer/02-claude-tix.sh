@@ -79,7 +79,7 @@ else
   mkdir -p "$HOME/.local/bin"
   if python3 -m venv "$TIX_VENV" >/dev/null 2>&1 \
      && "$TIX_VENV/bin/pip" install -q --upgrade pip >/dev/null 2>&1 \
-     && "$TIX_VENV/bin/pip" install -q "git+https://github.com/tix-cli/tix" >/dev/null 2>&1 \
+     && "$TIX_VENV/bin/pip" install -q "git+https://github.com/tinytools-cli/tix" >/dev/null 2>&1 \
      && [ -x "$TIX_VENV/bin/tix" ]; then
     ln -sf "$TIX_VENV/bin/tix" "$HOME/.local/bin/tix"
     ok "installed into its own venv"
@@ -91,3 +91,28 @@ fi
 # to a directory before this was fixed.
 if tix --help >/dev/null 2>&1; then ok "tix runs"
 else warn "tix does not run — check $TIX_VENV"; fi
+
+# THE GUARD'S OTHER HALF. work-guard.sh looks for the stop-hook adapter at
+# $TIX_DIR/adapters/claude-code-stop-hook.sh, defaulting TIX_DIR to
+# ~/.local/share/tix — a DIFFERENT directory from the venv above
+# (~/.local/share/tix-venv), and the adapter ships in tix's git repo, not in
+# the pip package. Nothing installed it, so the guard fell back to its
+# fail-open path on every real install: exit 0, ticketing unenforced, no
+# warning. Fetched from upstream on purpose rather than vendored, so it stays
+# current with tix's own fixes.
+step "tix stop-hook adapter"
+ADAPTER_DIR="$HOME/.local/share/tix/adapters"
+ADAPTER="$ADAPTER_DIR/claude-code-stop-hook.sh"
+if [ -s "$ADAPTER" ]; then
+  ok "already installed"
+else
+  mkdir -p "$ADAPTER_DIR"
+  if curl -fsSL "https://raw.githubusercontent.com/tinytools-cli/tix/main/adapters/claude-code-stop-hook.sh" \
+       -o "$ADAPTER" 2>/dev/null && [ -s "$ADAPTER" ]; then
+    chmod 750 "$ADAPTER"
+    ok "fetched from upstream tix"
+  else
+    rm -f "$ADAPTER"
+    warn "could not fetch the stop-hook adapter — work-guard.sh will fail open (ticketing unenforced)"
+  fi
+fi

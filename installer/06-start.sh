@@ -24,6 +24,18 @@ systemctl --user enable --now state-backup.timer >/dev/null 2>&1 \
   && ok "state versioned hourly into ~/.fleet/state (restore is verified on every run)" \
   || warn "state backup installed but the timer would not start — run ~/.fleet/bin/state-backup.sh by hand"
 
+step "acceptance suite"
+# CLAUDE.main.md tells the main agent to run ~/.fleet/tests/acceptance.sh and
+# loop until green. Nothing ever put it there — the suite only ever existed at
+# a path relative to this repo checkout, so on a real install the thing the
+# install is meant to be validated against was simply absent. Installed here,
+# not vendored elsewhere, because it needs installer/lib.sh's helpers
+# alongside it at the same relative layout acceptance.sh already expects.
+mkdir -p "$HOME/.fleet/tests" "$HOME/.fleet/installer"
+install -m 750 "$HERE/tests/acceptance.sh" "$HOME/.fleet/tests/acceptance.sh"
+install -m 640 "$HERE/installer/lib.sh"    "$HOME/.fleet/installer/lib.sh"
+check "acceptance suite installed" test -x "$HOME/.fleet/tests/acceptance.sh"
+
 step "watchdog"
 install -m 750 "$HERE/templates/fleet-watchdog.sh" "$HOME/.fleet/bin/fleet-watchdog.sh"
 mkdir -p "$HOME/.config/systemd/user"
@@ -74,5 +86,5 @@ say ""
 [ -n "$bad" ] && { say "  Failed to start:$bad"; say "  Look with: tmux attach -t agent-<name>"; }
 [ -z "$bad" ] && [ -n "$started" ] && ok "fleet up:$started"
 say ""
-say "  Now run the acceptance checks:  tests/acceptance.sh"
+say "  Now run the acceptance checks:  ~/.fleet/tests/acceptance.sh"
 exit 0

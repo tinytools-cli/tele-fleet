@@ -15,8 +15,14 @@ set -uo pipefail
 
 TIX_DIR="${TIX_DIR:-$HOME/.local/share/tix}"
 ADAPTER="$TIX_DIR/adapters/claude-code-stop-hook.sh"
-[ -r "$ADAPTER" ] || exit 0
-command -v tix >/dev/null 2>&1 || exit 0
+if [ ! -r "$ADAPTER" ]; then
+  echo "work-guard: no adapter at $ADAPTER — ticket enforcement is OFF for this session" >&2
+  exit 0
+fi
+if ! command -v tix >/dev/null 2>&1; then
+  echo "work-guard: tix not on PATH — ticket enforcement is OFF for this session" >&2
+  exit 0
+fi
 
 agent="${TIX_AGENT:-}"
 if [ -z "$agent" ]; then

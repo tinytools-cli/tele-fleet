@@ -172,8 +172,8 @@ card, hit Submit."*
 
 ## When it is broken
 
-Infrastructure belongs to **the infrastructure agent**. A dead container, no route out, a browser that will not load —
-tell him rather than restarting things:
+Infrastructure belongs to **{{MAIN}}**. A dead container, no route out, a browser that will not load —
+tell them rather than restarting things:
 
     hq desktop list                 # which desktops exist, are they up, where do they egress
     hq bug "<what broke>" --from <you>

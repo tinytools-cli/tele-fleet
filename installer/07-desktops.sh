@@ -102,10 +102,28 @@ PY
 # THE SKILL IS HOW AN AGENT LEARNS ANY OF THIS. Shipping the tools without it
 # leaves every agent to rediscover the rules — and the first thing they
 # rediscover is screenshotting a page in order to read it.
+#
+# SUBSTITUTED, NOT COPIED VERBATIM. A plain `cp -r` ships any `{{...}}`
+# placeholder in a skill file through as literal text — which is exactly how
+# an earlier version of this skill leaked its own author's agent name into
+# every install. Every skill under templates/skills/ goes through the same
+# placeholder pass as CLAUDE.md, so a new skill gets substitution for free.
 step "skill"
 mkdir -p "$HOME/.claude/skills"
-cp -r "$HERE/templates/skills/agent-desktops" "$HOME/.claude/skills/" 2>/dev/null \
-  && ok "agent-desktops skill installed — every agent picks it up automatically" \
+MAIN="$(conf_get MAIN)"; OPERATOR="$(conf_get OPERATOR)"
+skill_ok=1
+for skill_src in "$HERE"/templates/skills/*/; do
+  name="$(basename "$skill_src")"
+  dest="$HOME/.claude/skills/$name"
+  while IFS= read -r -d '' f; do
+    rel="${f#"$skill_src"}"
+    mkdir -p "$dest/$(dirname "$rel")" || { skill_ok=0; continue; }
+    sed -e "s|{{MAIN}}|$MAIN|g" -e "s|{{OPERATOR}}|$OPERATOR|g" "$f" > "$dest/$rel" 2>/dev/null \
+      || { skill_ok=0; continue; }
+    chmod --reference="$f" "$dest/$rel" 2>/dev/null || true
+  done < <(find "$skill_src" -type f -print0)
+done
+[ "$skill_ok" = 1 ] && ok "agent-desktops skill installed — every agent picks it up automatically" \
   || warn "could not install the skill"
 
 step "verify"

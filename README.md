@@ -48,7 +48,7 @@ pre-seeded token that has been revoked is reported, not assumed good.
 **You authenticate.** Your Claude login, and one Telegram bot per agent from
 BotFather (it walks you through this and checks each token actually works).
 
-**It does the rest.** Packages, firewall, Claude Code, [tix](https://github.com/tix-cli/tix)
+**It does the rest.** Packages, firewall, Claude Code, [tix](https://github.com/tinytools-cli/tix)
 for shared ticket tracking, agent directories and identities, systemd units,
 the ticket-enforcement hook, and starting everything.
 

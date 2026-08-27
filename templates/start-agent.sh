@@ -38,7 +38,11 @@ fi
 CLAUDE_TOKEN="$HOME/.fleet/secrets/claude-token.env"
 
 env_files=""
-[ -r "$CLAUDE_TOKEN" ] && env_files=". '$CLAUDE_TOKEN' && "
+if [ -r "$CLAUDE_TOKEN" ]; then
+  env_files=". '$CLAUDE_TOKEN' && "
+else
+  echo "$name: no long-lived token at $CLAUDE_TOKEN — falling back to interactive-login credentials, which expire. Run: claude setup-token" >&2
+fi
 [ -r "$TOKEN" ] && env_files="${env_files}. '$TOKEN' && "
 tmux new-session -d -s "$SESSION" -x 200 -y 50 \
   "cd '$DIR' && export TELEGRAM_STATE_DIR='$STATE' && export TIX_AGENT='$name' && \
