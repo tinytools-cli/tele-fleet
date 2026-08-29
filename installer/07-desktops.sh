@@ -79,6 +79,24 @@ step "the driving tools"
 install -m 750 "$HERE/templates/desktop.sh" "$HOME/.fleet/bin/desktop.sh"
 ok "desktop.sh installed — read / find / click / type, with screenshots off by default"
 
+# TAB HOUSEKEEPING. Browser tabs accumulate because nothing ever closes them:
+# an agent opens one for a lookup and moves on. Left alone a desktop reaches
+# twenty-odd tabs -- including several copies of the same page -- and the
+# containers become the largest memory consumer on the box. That is not
+# theoretical: it contributed to an out-of-memory event that killed a running
+# agent.
+#
+# The sweeper closes an unprotected tab nothing has touched for a while, and
+# caps how many unprotected tabs a desktop may hold. It will NEVER close
+# anything listed in desktop-protected.conf, because those hold LOGIN
+# SESSIONS: closing an idle-looking mail tab once cost a human a full
+# multi-factor re-authentication. Edit that file freely -- a wrong protect
+# costs a little memory, a wrong close costs somebody their afternoon.
+install -m 750 "$HERE/templates/desktop-tabsweep.py" "$HOME/.fleet/bin/desktop-tabsweep.py"
+install -m 640 "$HERE/templates/desktop-protected.conf" "$HOME/.fleet/desktop-protected.conf"
+ok "tab sweeper installed — run it from cron/systemd hourly, or by hand"
+say "  protected tabs: \$HOME/.fleet/desktop-protected.conf (edit before relying on it)"
+
 # Enforced at the TOOL level, not just in desktop.sh: a script-level block only
 # guards the polite path, and `xwd` walks straight past it.
 install -m 750 "$HERE/templates/screenshot-guard.sh" "$HOME/.fleet/bin/screenshot-guard.sh"
@@ -131,5 +149,7 @@ for d in $(printf '%s' "$WANT" | tr ',' ' '); do
   check "$d container running" bash -c "docker inspect -f '{{.State.Running}}' '${d}-desktop' 2>/dev/null | grep -q true"
 done
 check "desktop.sh installed" test -x "$HOME/.fleet/bin/desktop.sh"
+check "tab sweeper installed" test -x "$HOME/.fleet/bin/desktop-tabsweep.py"
+check "protected-tab list present" test -s "$HOME/.fleet/desktop-protected.conf"
 say ""
 say "  A desktop takes a minute to come up. Then: ~/.fleet/bin/desktop.sh --help"

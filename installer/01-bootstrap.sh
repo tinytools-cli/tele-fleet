@@ -5,7 +5,7 @@
 need_root() { [ "$(id -u)" = 0 ] || { warn "not root — skipping package install; re-run with sudo for a full bootstrap"; return 1; }; }
 
 # nodejs/npm are NOT optional -- Claude Code is installed with npm, and a
-# clean-machine run (an internal ticket) got as far as "npm not found ... the fleet cannot
+# clean-machine run got as far as "npm not found ... the fleet cannot
 # start without it" because this list omitted them. The development machine had
 # Node already, so the gap was invisible until the container test.
 PKGS="tmux git curl jq python3 python3-venv python3-pip nodejs npm ufw fail2ban ca-certificates"
@@ -50,7 +50,7 @@ esac
 
 step "verify"
 # ONE ACTIONABLE MESSAGE, not a warning followed by an unrelated death.
-# Found by running this on a clean machine (an internal ticket): a non-root run warned
+# Found by running this on a clean machine: a non-root run warned
 # "skipping package install", then died with "tmux is required and missing" --
 # two messages that are the SAME problem, presented as though they were not.
 # The reader is left thinking a dependency is broken rather than realising they

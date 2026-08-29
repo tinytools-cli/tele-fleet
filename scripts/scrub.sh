@@ -38,10 +38,24 @@ PATTERNS=(
   # the other patterns look for paths, ids and hostnames, and a first name is
   # none of those. A leak does not have to look technical to be a leak.
   'EXAMPLE_OWNER_NAME'
+  # AGENT NAMES from the source fleet. Added after a sweep found 'an agent name' and
+  # 'agent-desktop' still sitting in shipped comments, having sailed past every
+  # check above: the existing patterns hunt paths, ids, hostnames and ONE
+  # person's name, and a colleague's first name is none of those. The war
+  # stories in these files are the most valuable part of them and must survive
+  # -- but with anonymous actors.
+  'EXAMPLE_AGENT_NAME'
+  'example-agent-desktop'
+  # PRIVATE TRACKER KEYS. Ticket keys like these mean nothing to anyone outside
+  # the source fleet and quietly advertise its internals.
+  '\bEXAMPLE-[0-9]+\b'
 )
 LABELS=( "source home path" "long numeric id (chat/user id)" "telegram bot token"
          "api key" "github token" "tailnet ip" "tailnet hostname" "bot username"
-         "a person's name from the source machine" )
+         "a person's name from the source machine"
+         "an agent name from the source fleet"
+         "a desktop name from the source fleet"
+         "a private tracker key" )
 
 fail=0
 files=$(git ls-files 2>/dev/null)

@@ -68,7 +68,7 @@ step "tix"
 # copy. In the PUBLISHED package `tix` is the python package DIRECTORY and the
 # command comes from [project.scripts]. So the symlink pointed at a directory
 # and every tix call died with "Is a directory". Only a clean-machine run found
-# it (an internal ticket) -- this box already had a working tix on PATH.
+# it -- this box already had a working tix on PATH.
 #
 # Into its own venv on purpose: Ubuntu 24.04 refuses `pip install --user`
 # (PEP 668, externally-managed), and a venv sidesteps that argument entirely

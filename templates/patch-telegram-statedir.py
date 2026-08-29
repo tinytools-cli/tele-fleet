@@ -5,7 +5,7 @@ Upstream hardcodes STATE_DIR to ~/.claude/channels/telegram. That is fine for
 one bot and fatal for two: they would share access.json, the .env holding the
 token, messages.db, and -- worst -- data/telegram.lock. Two instances on one
 lock is exactly the single-instance race that silently killed inbound polling
-on 2026-08-19; with two real bots it would be permanent rather than a race.
+on once; with two real bots it would be permanent rather than a race.
 
 Honouring TELEGRAM_STATE_DIR lets each agent own its own directory while the
 default path is byte-identical for anyone who does not set it.

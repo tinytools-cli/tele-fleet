@@ -22,7 +22,7 @@
 # TELEGRAM_STATE_DIR, which every Telegram-wired agent has and a plain terminal
 # session does not.
 #
-# Tracked in an internal ticket.
+# (recorded in the maintainer's tracker)
 set -uo pipefail
 payload="$(cat 2>/dev/null || true)"
 [ -n "$payload" ] || exit 0
@@ -40,7 +40,7 @@ python3 -c "
 import json
 print(json.dumps({'hookSpecificOutput':{'hookEventName':'PreToolUse','permissionDecision':'deny','permissionDecisionReason':'''AskUserQuestion renders a menu in YOUR TERMINAL. The person you are asking is on Telegram and will never see it — you will block mid-turn, waiting on a keypress that cannot arrive, and no health check will notice because nothing is broken.
 
-That exact wedge cost an agent 15 minutes on 2026-08-25.
+That exact wedge cost an agent 15 minutes on once.
 
 Use the Telegram one instead — it sends real tappable buttons and blocks until they tap:
 

@@ -5,7 +5,7 @@
 # was the whole enforcement until the operator asked "could the message be given at
 # the CLI level itself?" -- which prompted the obvious test I had not run:
 #
-#     docker exec -u abc agent-desktop bash -c 'DISPLAY=:1 xwd -root > /tmp/x.xwd'
+#     docker exec -u abc another agent's desktop bash -c 'DISPLAY=:1 xwd -root > /tmp/x.xwd'
 #     -rw-r--r-- 1 abc abc 13786219 ... /tmp/x.xwd
 #
 # 13 MB, no desktop.sh involved. The block covered the POLITE path only. Not
@@ -19,7 +19,7 @@
 # have to proactively inform"). The denial names the alternative, says who set
 # the rule, and points at the skill.
 #
-# Tracked in an internal ticket.
+# (recorded in the maintainer's tracker)
 set -uo pipefail
 payload="$(cat 2>/dev/null || true)"
 cmd="$(printf '%s' "$payload" | python3 -c "
@@ -65,7 +65,7 @@ Agents read, control and execute through the CLI:
 
 find reads coordinates from the page itself, so they cannot drift from what is
 rendered. A half-scale screenshot mis-aimed every click on every desktop for
-hours on 2026-08-25 and opened reply drafts on real customer mail (an internal ticket).
+hours on once and opened reply drafts on real customer mail.
 
 Genuinely need to SEE it — a native dialog, a window that will not paint, a
 rendering fault with no text behind it? Then say so on purpose:

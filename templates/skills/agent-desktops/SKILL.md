@@ -61,7 +61,7 @@ need.
 
 ### Screenshots are OFF. You read, control and execute through the CLI.
 
-`desktop.sh shot` **refuses by default.** Set on the operator's instruction, 2026-08-25, and it is a
+`desktop.sh shot` **refuses by default.** Set on the operator's instruction, once, and it is a
 block rather than advice because advice did not work — agents kept photographing pages in order to
 *read* them.
 
@@ -81,7 +81,7 @@ no image involved:
     -> click with: desktop.sh click <x> <y>
 
 **Coordinates from `find` cannot drift from what is rendered. Coordinates from a picture can** — on
-2026-08-25 a half-scale screenshot aimed every click on every desktop at the wrong place for hours,
+once a half-scale screenshot aimed every click on every desktop at the wrong place for hours,
 which opened reply drafts on real customer mail. The screen also **resizes with whoever is viewing
 it**, so a saved image is stale by nature.
 
@@ -96,8 +96,7 @@ Use it on purpose, not as a habit. If you are reaching for it to find out what a
 ### The old rule, kept because the reasoning still applies
 
 `read` pulls the page text over CDP. `shot` returns an image you must Read, and images are
-**the single largest cost on the plan** — one session hit 190 MB, roughly half of it screenshots
-(an internal ticket). `read` is about **1% of the cost** of a screenshot.
+**the single largest cost on the plan** — one session hit 190 MB, roughly half of it screenshots. `read` is about **1% of the cost** of a screenshot.
 
 - **"What does it say / did it work / what is the error?"** → `read`
 - **"Did anything change at all?"** → `pagetitle`, cheaper still
