@@ -2,7 +2,7 @@
 """Close idle and excess browser tabs, without ever touching a signed-in one.
 
 WHY. Tabs accumulate because nothing closes them: agents open one for
-a lookup and move on. another agent's desktop reached 18 targets including THREE copies
+a lookup and move on. another agent-desktop reached 18 targets including THREE copies
 of the same Microsoft page, and desktop memory is the largest single consumer
 on a box that OOM'd on once. Trimming by hand is a treadmill.
 
@@ -25,6 +25,7 @@ WHAT IT WILL NOT DO, and why this matters more than what it will:
 NO MODEL. Comparing timestamps and matching substrings.
 """
 import json, os, sys, time, urllib.request, subprocess
+from urllib.parse import urlsplit
 from pathlib import Path
 
 IDLE_HOURS = float(os.environ.get("TABSWEEP_IDLE_HOURS", "6"))
@@ -68,24 +69,22 @@ def main():
     now = time.time()
     newstate = {}
 
-    # A FRESH INSTALL HAS NO DESKTOPS YET. Without this the first timer fire
-    # tracebacks with FileNotFoundError on every run -- the first thing a new
-    # user would see from this tool, and it would look broken when it is
-    # simply early.
-    if not DESKTOPS.is_dir():
-        print("no desktop root at %s — nothing to sweep" % DESKTOPS)
-        return
-
     for desk in sorted([d.name for d in DESKTOPS.iterdir() if d.is_dir()]):
         container = desk + "-desktop"
         if subprocess.run(["docker", "inspect", "-f", "{{.State.Running}}", container],
                           capture_output=True, text=True).stdout.strip() != "true":
             continue
-        if claimed(desk):
-            print("  %s: claimed by an agent — skipped" % desk)
-            for k, v in state.items():
-                if k.startswith(desk + "|"): newstate[k] = v
-            continue
+        # A CLAIM PROTECTS WORK IN PROGRESS, NOT A LEAK.
+        # Idle-closing and the ceiling are suspended on a claimed desktop --
+        # an agent mid-task is not idle whatever its tabs look like. But
+        # RUNAWAY DUPLICATES still get cleaned, because they are not work:
+        # they are the same page over and over, they steal window focus, and
+        # the agent whose desktop it is asked for help with exactly that.
+        # Closing duplicates beyond the newest few cannot disturb anything a
+        # claim exists to protect.
+        is_claimed = claimed(desk)
+        if is_claimed:
+            print("  %s: claimed — idle/ceiling suspended, duplicates still swept" % desk)
         try:
             targets = json.loads(cdp(container, "/json"))
         except Exception as e:
@@ -93,6 +92,7 @@ def main():
 
         pages = [t for t in targets if t.get("type") == "page"]
         closable = []
+        dup = {}
         for t in pages:
             url, tid = t.get("url") or "", t.get("id")
             key = "%s|%s" % (desk, tid)
@@ -109,6 +109,25 @@ def main():
             newstate[key] = {"sig": sig, "last_change": last_change,
                              "first_seen": first_seen, "url": url}
             if any(p in url for p in pats):
+                # PROTECTED, BUT NOT IMMUNE TO BEING A RUNAWAY.
+                # Protection is by URL substring, so a page that SPAWNS ITSELF
+                # is protected too -- and multiplies freely. One agent's
+                # desktop reached 124 IDENTICAL login.microsoftonline popups
+                # from a failing token refresh: 90% of its memory cap, host
+                # down to 1.2 GB, and this sweeper would never have touched a
+                # single one of them.
+                # A protected URL appearing many times over is not a session,
+                # it is a leak. Duplicates beyond the first few get closed
+                # whatever the list says; the newest is always kept, so a real
+                # in-flight sign-in survives.
+                # GROUP BY host+path, NOT the whole URL. Each OAuth attempt
+                # carries its own nonce and state parameter, so 124 popups of
+                # the same sign-in page are 124 DISTINCT urls -- exact
+                # matching finds no duplicates at all and the runaway sails
+                # through. Only discovered by counting the live ones and
+                # seeing every count come back as 1.
+                sp = urlsplit(url)
+                dup.setdefault(sp.netloc + sp.path, []).append((t.get("id"), last_change))
                 continue
             if not url.startswith("http"):
                 continue
@@ -116,16 +135,29 @@ def main():
                 continue          # never watched before: no idle history yet
             closable.append((last_change, tid, url))
 
-        # IDLE
-        doomed = [(lc, i, u) for lc, i, u in closable
-                  if now - lc > IDLE_HOURS * 3600]
+        # RUNAWAY DUPLICATES, protected or not. Keep the most recently
+        # changed few; close the rest.
+        KEEP_DUP = int(os.environ.get("TABSWEEP_KEEP_DUP", "2"))
+        runaway = []
+        for u, lst in dup.items():
+            if len(lst) <= KEEP_DUP:
+                continue
+            lst.sort(key=lambda x: x[1], reverse=True)   # newest first
+            for tid, lc in lst[KEEP_DUP:]:
+                runaway.append((lc, tid, u))
+        if runaway:
+            print("  %s: %d runaway duplicate tab(s)" % (desk, len(runaway)))
+
+        # IDLE — suspended while the desktop is claimed
+        doomed = [] if is_claimed else [(lc, i, u) for lc, i, u in closable
+                                        if now - lc > IDLE_HOURS * 3600]
         # CEILING, counted over UNPROTECTED only (his refinement)
-        keep = [c for c in closable if c not in doomed]
+        keep = [] if is_claimed else [c for c in closable if c not in doomed]
         if len(keep) > MAX_UNPROTECTED:
             keep.sort()           # oldest last_change first
             doomed += keep[:len(keep) - MAX_UNPROTECTED]
 
-        for lc, tid, url in doomed:
+        for lc, tid, url in doomed + runaway:
             age = (now - lc) / 3600
             if DRY:
                 print("  %s: WOULD close (idle %.1fh) %s" % (desk, age, url[:58]))
