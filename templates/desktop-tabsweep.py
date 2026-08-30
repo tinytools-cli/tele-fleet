@@ -93,6 +93,7 @@ def main():
         pages = [t for t in targets if t.get("type") == "page"]
         closable = []
         dup = {}
+        closed_titles = []
         for t in pages:
             url, tid = t.get("url") or "", t.get("id")
             key = "%s|%s" % (desk, tid)
@@ -157,6 +158,7 @@ def main():
             keep.sort()           # oldest last_change first
             doomed += keep[:len(keep) - MAX_UNPROTECTED]
 
+        by_id = {t.get("id"): (t.get("title") or "").strip() for t in pages}
         for lc, tid, url in doomed + runaway:
             age = (now - lc) / 3600
             if DRY:
@@ -168,12 +170,51 @@ def main():
                                 "curl -s -m 8 http://127.0.0.1:9222/json/close/" + tid],
                                capture_output=True, timeout=20)
                 print("  %s: closed (idle %.1fh) %s" % (desk, age, url[:58]))
+                closed_titles.append(by_id.get(tid, ""))
                 newstate.pop("%s|%s" % (desk, tid), None)
             except Exception as e:
                 print("  %s: close failed %s (%s)" % (desk, url[:40], e))
+        if closed_titles and not DRY:
+            sweep_orphan_windows(container, closed_titles)
 
     STATE.parent.mkdir(parents=True, exist_ok=True)
     STATE.write_text(json.dumps(newstate, indent=2))
+
+
+def sweep_orphan_windows(container, closed_titles):
+    """Close X windows left behind by a page we just closed.
+
+    CLOSING A CDP PAGE TARGET DOES NOT ALWAYS CLOSE ITS WINDOW. Found the hard
+    way: after clearing 124 runaway sign-in popups, four full-screen windows
+    with those titles remained, holding X focus with NO live page behind them.
+    The agent using that desktop could not get focus back to her mail --
+    cleaning up the tabs had not cleaned up the problem.
+
+    Deliberately narrow: only windows whose title matches something closed in
+    THIS run, and only when no live page still carries that title. A window
+    with a live page behind it is somebody's work.
+
+    windowclose, never windowkill -- killing a Chromium window is how you take
+    the whole browser down with it.
+    """
+    if not closed_titles:
+        return
+    live = set()
+    try:
+        out = subprocess.run(["docker", "exec", container, "bash", "-lc",
+                              "curl -s -m 8 http://127.0.0.1:9222/json"],
+                             capture_output=True, text=True, timeout=20).stdout
+        live = {(t.get("title") or "").strip()
+                for t in json.loads(out) if t.get("type") == "page"}
+    except Exception:
+        return
+    for title in {t for t in closed_titles if t and t not in live}:
+        safe = title.replace("'", "")
+        subprocess.run(["docker", "exec", container, "bash", "-lc",
+                        "export DISPLAY=:1; for w in $(xdotool search --name '%s' 2>/dev/null); "
+                        "do xdotool windowclose $w 2>/dev/null; done" % safe],
+                       capture_output=True, timeout=30)
+        print("  %s: closed orphan window(s) titled %r" % (container, title[:40]))
 
 
 if __name__ == "__main__":
