@@ -2,8 +2,8 @@
 # Stop hook: refuse to end a turn that answered into the terminal.
 #
 # THE PROBLEM THIS SOLVES DETERMINISTICALLY. Rules and nudges are advice; an
-# agent can compose a perfect answer, print it, and stop. It happened to one agent
-# and to an agent on once, and in both cases everything measurable was green.
+# agent can compose a perfect answer, print it, and stop. It happened to two
+# different agents, and in both cases everything measurable was green.
 # A Stop hook is enforcement: the harness runs it, not the model, and it can
 # refuse to let the turn end.
 #

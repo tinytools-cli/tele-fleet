@@ -2,19 +2,19 @@
 """Close idle and excess browser tabs, without ever touching a signed-in one.
 
 WHY. Tabs accumulate because nothing closes them: agents open one for
-a lookup and move on. another agent-desktop reached 18 targets including THREE copies
+a lookup and move on. One desktop reached 18 targets including THREE copies
 of the same Microsoft page, and desktop memory is the largest single consumer
-on a box that OOM'd on once. Trimming by hand is a treadmill.
+on a box that had already run out of memory once. Trimming by hand is a treadmill.
 
 TWO RULES, both the operator's choice:
   IDLE   close an unprotected tab nothing has touched for IDLE_HOURS
   CEILING keep at most MAX_UNPROTECTED unprotected tabs, oldest-idle first
-The ceiling counts ONLY unprotected tabs -- his refinement, and the right one:
+The ceiling counts ONLY unprotected tabs -- the operator's refinement, and the right one:
 a signed-in app should never push a research tab out, or vice versa.
 
 WHAT IT WILL NOT DO, and why this matters more than what it will:
   - Never closes anything matching desktop-protected.conf. Those hold LOGIN
-    SESSIONS. Closing one agent's idle Outlook on once dropped her Microsoft
+    SESSIONS. Closing one agent's idle Outlook tab once dropped its Microsoft
     session and cost the operator a full Authenticator round to restore.
   - Never touches a desktop that is CLAIMED. An agent mid-task is not idle,
     whatever its tabs look like.
@@ -32,7 +32,7 @@ IDLE_HOURS = float(os.environ.get("TABSWEEP_IDLE_HOURS", "6"))
 MAX_UNPROTECTED = int(os.environ.get("TABSWEEP_MAX", "8"))
 STATE = Path.home() / ".fleet" / "state" / "tabsweep.json"
 CONF = Path(os.environ.get("PROTECTED_CONF", str(Path.home() / ".fleet" / "desktop-protected.conf")))
-DESKTOPS = Path(os.environ.get("DESKTOP_ROOT", str(Path.home() / "agent-desktops")))
+DESKTOPS = Path(os.environ.get("DESKTOP_ROOT", str(Path.home() / ".fleet" / "desktops")))
 DRY = bool(os.environ.get("TABSWEEP_DRY"))
 
 
@@ -109,7 +109,17 @@ def main():
                 first_seen = prev.get("first_seen", now) if prev else now
             newstate[key] = {"sig": sig, "last_change": last_change,
                              "first_seen": first_seen, "url": url}
-            if any(p in url for p in pats):
+            # A PROTECTED URL IS NOT THE SAME AS A LIVE SESSION. Protection exists to keep a
+            # signed-in session alive, but a tab whose page says the session is already GONE
+            # (a sign-in prompt, a logout page) protects nothing -- and keeping it can feed a
+            # loop: OOM -> browser dies -> tabs restore -> restored auth tabs replay a POST URL
+            # as GET -> the identity provider rejects it -> re-auth can never complete -> more
+            # dead sign-in tabs. So ask what the page MEANS, not only what its URL matches.
+            title_l = (t.get("title") or "").strip().lower()
+            dead_session = any(s in title_l for s in (
+                "sign in to your account", "logout successful",
+                "choose authentication", "sign out", "signed out"))
+            if any(p in url for p in pats) and not dead_session:
                 # PROTECTED, BUT NOT IMMUNE TO BEING A RUNAWAY.
                 # Protection is by URL substring, so a page that SPAWNS ITSELF
                 # is protected too -- and multiplies freely. One agent's
@@ -152,7 +162,7 @@ def main():
         # IDLE — suspended while the desktop is claimed
         doomed = [] if is_claimed else [(lc, i, u) for lc, i, u in closable
                                         if now - lc > IDLE_HOURS * 3600]
-        # CEILING, counted over UNPROTECTED only (his refinement)
+        # CEILING, counted over UNPROTECTED only (an operator refinement)
         keep = [] if is_claimed else [c for c in closable if c not in doomed]
         if len(keep) > MAX_UNPROTECTED:
             keep.sort()           # oldest last_change first
@@ -187,7 +197,7 @@ def sweep_orphan_windows(container, closed_titles):
     CLOSING A CDP PAGE TARGET DOES NOT ALWAYS CLOSE ITS WINDOW. Found the hard
     way: after clearing 124 runaway sign-in popups, four full-screen windows
     with those titles remained, holding X focus with NO live page behind them.
-    The agent using that desktop could not get focus back to her mail --
+    The agent using that desktop could not get focus back to its mail --
     cleaning up the tabs had not cleaned up the problem.
 
     Deliberately narrow: only windows whose title matches something closed in

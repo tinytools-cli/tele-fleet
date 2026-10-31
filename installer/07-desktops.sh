@@ -8,19 +8,66 @@
 #
 # YOU CAN WATCH AND TAKE OVER. Each desktop serves a web view on localhost, so
 # you can open it, take the mouse, sign in, and let the agent carry on.
+#
+# ONE PER AGENT, OR ONE SHARED -- ROUTED BY NAME, NOT BY A LIST. desktop.sh picks
+# the desktop from the caller's TIX_AGENT: if ~/.fleet/desktops/<agent>/ exists,
+# that agent drives <agent>-desktop and nobody else's. Anyone without their own
+# falls back to the name in ~/.fleet/desktops/.default, and if there is none the
+# tool REFUSES rather than guessing -- a guess puts an agent on somebody else's
+# signed-in browser. Adding an agent's desktop later is just DESKTOPS=...,<name>
+# and a re-run; no script names anyone.
+#
+# CHEAP WHEN IDLE. A stopped desktop is started by the first command that needs
+# it (wake on use), so you can stop idle ones to give memory back and nothing
+# breaks. Each runs under a memory cap (DESKTOP_MEM, default 3g) so one runaway
+# browser cannot take the machine down with it.
 . "$(dirname "$0")/lib.sh"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 
+# SKILLS. Every skill under templates/skills/ is installed here. Most are not about
+# desktops at all (continuous-work, autonomous-ticket-loop), so they install even
+# when no desktop is requested; agent-desktops itself only installs when there is
+# a desktop for it to describe -- a skill for a tool that is not there misleads.
+#
+# SUBSTITUTED, NOT COPIED VERBATIM. A plain `cp -r` ships any `{{...}}`
+# placeholder in a skill file through as literal text — which is exactly how
+# an earlier version of this skill leaked its own author's agent name into
+# every install. Every skill goes through the same placeholder pass as
+# CLAUDE.md, so a new skill gets substitution for free.
+install_skills() {   # $1 = all | nodesk
+  mkdir -p "$HOME/.claude/skills"
+  local MAIN OPERATOR skill_ok=1 skill_src name dest f rel done_list=""
+  MAIN="$(conf_get MAIN)"; OPERATOR="$(conf_get OPERATOR)"
+  for skill_src in "$HERE"/templates/skills/*/; do
+    name="$(basename "$skill_src")"
+    [ "$1" = nodesk ] && [ "$name" = agent-desktops ] && continue
+    dest="$HOME/.claude/skills/$name"
+    while IFS= read -r -d '' f; do
+      rel="${f#"$skill_src"}"
+      mkdir -p "$dest/$(dirname "$rel")" || { skill_ok=0; continue; }
+      sed -e "s|{{MAIN}}|$MAIN|g" -e "s|{{OPERATOR}}|$OPERATOR|g" "$f" > "$dest/$rel" 2>/dev/null \
+        || { skill_ok=0; continue; }
+      chmod --reference="$f" "$dest/$rel" 2>/dev/null || true
+    done < <(find "$skill_src" -type f -print0)
+    done_list="$done_list $name"
+  done
+  [ "$skill_ok" = 1 ] && ok "skills installed:$done_list — every agent picks them up automatically" \
+    || warn "could not install every skill"
+}
+
 WANT="$(conf_get DESKTOPS)"
 if [ -z "$WANT" ]; then
-  say "  No desktops requested. Add DESKTOPS=<name>[,<name>] to $FLEET_CONF and"
+  install_skills nodesk
+  say "  No desktops requested. Add DESKTOPS=<name>[,<name>] to $FLEET_CONF (an agent's"
+  say "  name gives that agent its own; 'shared' gives everyone one) and"
   say "  re-run with ./install.sh --resume if you want them."
   exit 0
 fi
-have docker || { warn "docker not installed — skipping desktops. Install docker, then ./install.sh --resume"; exit 0; }
+have docker || { install_skills nodesk; warn "docker not installed — skipping desktops. Install docker, then ./install.sh --resume"; exit 0; }
 
 IMAGE="lscr.io/linuxserver/webtop:ubuntu-xfce"
 ROOT="$HOME/.fleet/desktops"; mkdir -p "$ROOT"
+MEM="$(conf_get DESKTOP_MEM 3g)"
 
 # FIND A FREE PORT rather than assuming one. Starting at a fixed number failed
 # the first time it met a machine that already had something on it — docker
@@ -62,7 +109,10 @@ for d in $(printf '%s' "$WANT" | tr ',' ' '); do
   # Bound to 127.0.0.1 ON PURPOSE. This is a full desktop with your logged-in
   # sessions in it and NO authentication of its own. Do not publish the port;
   # reach it over a VPN or an authenticating proxy if you need it remotely.
-  if docker run -d --name "$c" --restart unless-stopped --shm-size 1g \
+  #
+  # --memory caps the container, not the browser: the browser cannot see the cap
+  # and will not trim itself, which is what desktop-mem-watch.sh is for.
+  if docker run -d --name "$c" --restart unless-stopped --shm-size 1g --memory "$MEM" \
        --security-opt seccomp=unconfined --security-opt apparmor=unconfined \
        -p "127.0.0.1:${port}:3000" -v "$ROOT/$d/config:/config" \
        -e TITLE="${d} desktop" -e SELKIES_FRAMERATE=15 \
@@ -75,9 +125,37 @@ for d in $(printf '%s' "$WANT" | tr ',' ' '); do
   port=$((port+1))
 done
 
+# THE FALLBACK for agents without a desktop of their own. Written only when it is
+# unambiguous: DESKTOP_DEFAULT if you set one, else a desktop literally named
+# "shared", else the only desktop there is. With several per-agent desktops and
+# no explicit default, NONE is written on purpose -- silently handing every other
+# agent the first agent's signed-in browser is the exact mistake routing exists
+# to prevent.
+DEF="$(conf_get DESKTOP_DEFAULT)"
+set -- $(printf '%s' "$WANT" | tr ',' ' ')
+if [ -z "$DEF" ]; then
+  for d in "$@"; do [ "$d" = shared ] && DEF=shared; done
+  [ -z "$DEF" ] && [ "$#" -eq 1 ] && DEF="$1"
+fi
+if [ -n "$DEF" ]; then
+  printf '%s\n' "$DEF" > "$ROOT/.default"
+  ok "default desktop for agents without their own: $DEF"
+else
+  say "  no shared default -- agents without their own desktop will be refused (set DESKTOP_DEFAULT to change)"
+fi
+
 step "the driving tools"
 install -m 750 "$HERE/templates/desktop.sh" "$HOME/.fleet/bin/desktop.sh"
-ok "desktop.sh installed — read / find / click / type, with screenshots off by default"
+# lib/ holds the page-side helpers desktop.sh pipes into the container (element
+# resolution, verification, fill, choose). desktop.sh finds them next to itself.
+mkdir -p "$HOME/.fleet/bin/lib"
+install -m 640 "$HERE"/templates/lib/*.py "$HOME/.fleet/bin/lib/"
+install -m 750 "$HERE/templates/desktop-dropdown.sh" "$HOME/.fleet/bin/desktop-dropdown.sh"
+install -m 750 "$HERE/templates/desktop-report.py" "$HOME/.fleet/bin/desktop-report.py"
+install -m 750 "$HERE/templates/desktop-mem-watch.sh" "$HOME/.fleet/bin/desktop-mem-watch.sh"
+ok "desktop.sh installed — read / find / activate / fill / choose, with screenshots off by default"
+say "  what the desktops did:   ~/.fleet/bin/desktop-report.py"
+say "  memory warnings:         run ~/.fleet/bin/desktop-mem-watch.sh every minute from cron"
 
 # TAB HOUSEKEEPING. Browser tabs accumulate because nothing ever closes them:
 # an agent opens one for a lookup and moves on. Left alone a desktop reaches
@@ -117,38 +195,16 @@ else:
 json.dump(d, open(p, "w"), indent=2)
 PY
 
-# THE SKILL IS HOW AN AGENT LEARNS ANY OF THIS. Shipping the tools without it
-# leaves every agent to rediscover the rules — and the first thing they
-# rediscover is screenshotting a page in order to read it.
-#
-# SUBSTITUTED, NOT COPIED VERBATIM. A plain `cp -r` ships any `{{...}}`
-# placeholder in a skill file through as literal text — which is exactly how
-# an earlier version of this skill leaked its own author's agent name into
-# every install. Every skill under templates/skills/ goes through the same
-# placeholder pass as CLAUDE.md, so a new skill gets substitution for free.
 step "skill"
-mkdir -p "$HOME/.claude/skills"
-MAIN="$(conf_get MAIN)"; OPERATOR="$(conf_get OPERATOR)"
-skill_ok=1
-for skill_src in "$HERE"/templates/skills/*/; do
-  name="$(basename "$skill_src")"
-  dest="$HOME/.claude/skills/$name"
-  while IFS= read -r -d '' f; do
-    rel="${f#"$skill_src"}"
-    mkdir -p "$dest/$(dirname "$rel")" || { skill_ok=0; continue; }
-    sed -e "s|{{MAIN}}|$MAIN|g" -e "s|{{OPERATOR}}|$OPERATOR|g" "$f" > "$dest/$rel" 2>/dev/null \
-      || { skill_ok=0; continue; }
-    chmod --reference="$f" "$dest/$rel" 2>/dev/null || true
-  done < <(find "$skill_src" -type f -print0)
-done
-[ "$skill_ok" = 1 ] && ok "agent-desktops skill installed — every agent picks it up automatically" \
-  || warn "could not install the skill"
+install_skills all
 
 step "verify"
 for d in $(printf '%s' "$WANT" | tr ',' ' '); do
   check "$d container running" bash -c "docker inspect -f '{{.State.Running}}' '${d}-desktop' 2>/dev/null | grep -q true"
 done
 check "desktop.sh installed" test -x "$HOME/.fleet/bin/desktop.sh"
+check "desktop helpers installed" test -s "$HOME/.fleet/bin/lib/resolve-elements.py"
+check "dropdown tool installed" test -x "$HOME/.fleet/bin/desktop-dropdown.sh"
 check "tab sweeper installed" test -x "$HOME/.fleet/bin/desktop-tabsweep.py"
 check "protected-tab list present" test -s "$HOME/.fleet/desktop-protected.conf"
 say ""

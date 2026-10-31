@@ -89,7 +89,7 @@ interview() {
   say "  RAM when busy. Start with one shared desktop unless you know you need more."
   say ""
   say "    1  one shared desktop  (recommended)"
-  say "    2  one per agent"
+  say "    2  one per agent  (each agent gets its own browser and sessions; ~3 GB cap each)"
   say "    3  none"
   local pick desks=""
   while :; do

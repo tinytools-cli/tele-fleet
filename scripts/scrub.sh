@@ -32,6 +32,7 @@ PATTERNS=(
   'ghp_[A-Za-z0-9]{20,}'                        # github tokens
   '100\.(6[4-9]|[7-9][0-9]|1[0-2][0-9])\.[0-9]{1,3}\.[0-9]{1,3}'  # tailnet CGNAT range
   '[a-z0-9-]+\.ts\.net'                        # tailnet hostnames
+  '\btail[0-9a-f]{5,}\b'                       # a bare tailnet name, no .ts.net after it
   '@[a-z0-9_]{3,}_bot'                          # bot usernames
   # PERSONAL NAMES from the machine this was extracted from. Added after the
   # pattern list above passed a file that still said "the owner" three times:
@@ -44,18 +45,28 @@ PATTERNS=(
   # person's name, and a colleague's first name is none of those. The war
   # stories in these files are the most valuable part of them and must survive
   # -- but with anonymous actors.
+  # Widened when the per-agent desktops were ported: one desktop per agent
+  # means the source comments name far more agents than before.
   'EXAMPLE_AGENT_NAME'
   'example-agent-desktop'
   # PRIVATE TRACKER KEYS. Ticket keys like these mean nothing to anyone outside
   # the source fleet and quietly advertise its internals.
   '\bEXAMPLE-[0-9]+\b'
+  # COMPANY AND PRODUCT NAMES the source fleet works for or on. A war story can
+  # keep "a vendor portal"; it cannot keep the vendor's or employer's name.
+  'EXAMPLE_COMPANY'
+  # SOURCE-MACHINE LAYOUT. The live tools live under a private scripts folder;
+  # a path into it in a shipped file is both a leak and a broken reference.
+  'example-ops'
 )
 LABELS=( "source home path" "long numeric id (chat/user id)" "telegram bot token"
-         "api key" "github token" "tailnet ip" "tailnet hostname" "bot username"
+         "api key" "github token" "tailnet ip" "tailnet hostname" "tailnet name" "bot username"
          "a person's name from the source machine"
          "an agent name from the source fleet"
          "a desktop name from the source fleet"
-         "a private tracker key" )
+         "a private tracker key"
+         "a company or product name from the source fleet"
+         "a source-machine script path" )
 
 fail=0
 files=$(git ls-files 2>/dev/null)

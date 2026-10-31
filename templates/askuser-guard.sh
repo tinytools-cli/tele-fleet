@@ -3,9 +3,9 @@
 #
 # WHY THIS EXISTS. An agent once asked the operator a question with
 # AskUserQuestion. It renders a menu in the agent's tmux pane and blocks until
-# someone presses a key THERE. the operator is on Telegram and could not see it, so
-# An agent sat wedged for 15 minutes — mid-task, work in flight, every health check
-# green — until the operator noticed and I pressed the key for him.
+# someone presses a key THERE. The operator was on Telegram and could not see it, so
+# the agent sat wedged for 15 minutes — mid-task, work in flight, every health check
+# green — until the operator noticed and someone pressed the key by hand.
 #
 # The rule already existed in the shared instructions and the agent had read them.
 # That is the point: a written rule is advice, and advice loses to a tool that

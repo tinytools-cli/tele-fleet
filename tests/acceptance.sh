@@ -75,11 +75,17 @@ step "the watchdog"
 t "watchdog is installed"                 test -x "$HOME/.fleet/bin/fleet-watchdog.sh"
 t "watchdog timer is active"              systemctl --user is-active fleet-watchdog.timer
 
+step "skills"
+# Installed whether or not desktops were requested.
+t "continuous-work skill installed"       test -x "$HOME/.claude/skills/continuous-work/wait-for.sh"
+t "autonomous-ticket-loop skill installed" test -s "$HOME/.claude/skills/autonomous-ticket-loop/SKILL.md"
+
 # Only meaningful if desktops were requested — absent is not a failure.
 if [ -n "$(conf_get DESKTOPS)" ]; then
   step "desktops"
   t "desktop.sh installed"                test -x "$HOME/.fleet/bin/desktop.sh"
   t "screenshot guard installed"          test -x "$HOME/.fleet/bin/screenshot-guard.sh"
+  t "desktop helpers installed"           test -s "$HOME/.fleet/bin/lib/resolve-elements.py"
   for d in $(conf_get DESKTOPS | tr ',' ' '); do
     t "$d container running" bash -c "docker inspect -f '{{.State.Running}}' '${d}-desktop' 2>/dev/null | grep -q true"
   done
