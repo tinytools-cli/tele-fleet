@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.1
+
+- Maintenance: scrub gate patterns moved out of the repo; history normalised.
+  `scripts/scrub.sh` now reads machine-specific patterns from a private file
+  (`SCRUB_PRIVATE_PATTERNS`, default `~/.config/tele-fleet/scrub-private.txt`) and
+  fails with a warning when it is missing unless `SCRUB_ALLOW_GENERIC_ONLY=1`.
+  Also checks email addresses and private key material.
+
 ## v0.3.0
 
 **A desktop per agent, and two working-method skills.**

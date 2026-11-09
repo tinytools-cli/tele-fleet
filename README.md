@@ -107,5 +107,20 @@ Renaming is not supported: delete the agent and create a new one.
 stays current and stays maintained by its owner.
 
 **Nothing personal ships.** `scripts/scrub.sh` is a publish gate that refuses if
-tracked files contain home paths, chat ids, tokens, keys or hostnames. It runs
-against what git would publish, not the working directory.
+tracked files contain home paths, chat ids, tokens, keys, tailnet hostnames or
+email addresses. It runs against what git would publish, not the working
+directory, and the `.githooks/pre-push` hook runs it on every push
+(`git config core.hooksPath .githooks`).
+
+The generic patterns live in the script. The words that are specific to *your*
+machine — your name, your agents' names, your company, your hostnames — do not,
+because a public list of them would be the leak. Put them in a private file,
+one extended regex (`grep -E`) per line, `#` for comments:
+
+    mkdir -p ~/.config/tele-fleet && chmod 700 ~/.config/tele-fleet
+    $EDITOR ~/.config/tele-fleet/scrub-private.txt && chmod 600 ~/.config/tele-fleet/scrub-private.txt
+
+Point `SCRUB_PRIVATE_PATTERNS` at a different path if you keep it elsewhere.
+Without that file the gate prints a warning that only the generic checks ran and
+exits non-zero; set `SCRUB_ALLOW_GENERIC_ONLY=1` to accept generic-only checks
+on purpose.
